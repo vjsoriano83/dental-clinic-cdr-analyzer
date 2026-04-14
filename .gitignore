@@ -1,0 +1,24 @@
+# Real CDR data — NEVER upload to GitHub
+data/*.csv
+!data/sample_cdr.csv
+
+# Environment variables (API keys)
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Output (regenerable)
+output/charts/*.png
