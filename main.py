@@ -1,18 +1,18 @@
 """
 Dental Clinic CDR Analyzer
 ============================
-Main entry point — runs the full pipeline:
-  1. Load and deduplicate CDR data
-  2. Compute business KPIs
-  3. Generate charts
-  4. Generate AI-powered executive report
+Script principal — ejecuta el pipeline completo:
+  1. Carga y deduplica los datos CDR
+  2. Calcula KPIs de negocio
+  3. Genera gráficos
+  4. Genera informe ejecutivo con IA
 
-Usage:
-    python3 main.py                        # Uses sample data
-    python3 main.py data/real_cdr.csv      # Uses your own data
-    python3 main.py "data/*.csv"           # Multiple files
+Uso:
+    python3 main.py                        # Usa datos de ejemplo
+    python3 main.py data/real_cdr.csv      # Usa tus propios datos
+    python3 main.py "data/*.csv"           # Múltiples ficheros
 
-Author: Víctor Soriano Tárrega (@vjsoriano83)
+Autor: Víctor Soriano Tárrega (@vjsoriano83)
 """
 
 import sys
@@ -30,7 +30,7 @@ def main():
     print("=" * 60)
     print("  DENTAL CLINIC CDR ANALYZER")
     print("=" * 60)
-    print(f"  Data source: {data_path}\n")
+    print(f"  Fuente de datos: {data_path}\n")
 
     # ── Pipeline ──
     calls = load_and_process(data_path)
@@ -45,9 +45,9 @@ def main():
     generate_and_save_report(kpis)
 
     print(f"\n{'=' * 60}")
-    print("  ✅ ANALYSIS COMPLETE")
-    print(f"  📊 Charts saved to: output/charts/")
-    print(f"  📝 Report saved to: output/report_sample.md")
+    print("  ✅ ANÁLISIS COMPLETADO")
+    print(f"  📊 Gráficos guardados en: output/charts/")
+    print(f"  📝 Informe guardado en:   output/report_sample.md")
     print(f"{'=' * 60}")
 
 

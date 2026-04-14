@@ -198,21 +198,21 @@ def plot_extension_performance(kpis: dict):
     ext_labels = [str(int(e)) if not pd.isna(e) else str(e) for e in ext.index]
 
     # Gráfico 1: llamadas contestadas por extensión
-    bars1 = ax1.barh(ext_labels, ext["calls_answered"], color=COLORS["secondary"])
+    bars1 = ax1.barh(ext_labels, ext["llamadas_contestadas"], color=COLORS["secondary"])
     ax1.set_xlabel("Calls Answered", fontsize=11)
     ax1.set_title("Calls Answered per Extension", fontsize=13, fontweight="bold")
 
     # Añadimos el porcentaje al lado de cada barra
-    for bar, pct in zip(bars1, ext["pct_of_answered"]):
+    for bar, pct in zip(bars1, ext["pct_del_total"]):
         ax1.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2,
                 f"{pct}%", va="center", fontsize=10)
 
     # Gráfico 2: duración media por extensión
-    bars2 = ax2.barh(ext_labels, ext["avg_duration"], color=COLORS["primary"])
+    bars2 = ax2.barh(ext_labels, ext["duracion_media"], color=COLORS["primary"])
     ax2.set_xlabel("Avg Duration (seconds)", fontsize=11)
     ax2.set_title("Avg Call Duration per Extension", fontsize=13, fontweight="bold")
 
-    for bar, dur in zip(bars2, ext["avg_duration"]):
+    for bar, dur in zip(bars2, ext["duracion_media"]):
         ax2.text(bar.get_width() + 1, bar.get_y() + bar.get_height()/2,
                 f"{dur:.0f}s", va="center", fontsize=10)
 

@@ -22,6 +22,9 @@ import pandas as pd
 import os
 import glob
 
+# Extensiones que son buzón de voz (no personas reales)
+VOICEMAIL_EXTENSIONS = {"vmu201", "vms201"}
+
 
 def load_cdr(path: str) -> pd.DataFrame:
     """
@@ -30,23 +33,21 @@ def load_cdr(path: str) -> pd.DataFrame:
     Parámetros:
         path: puede ser:
             - Un fichero concreto: "data/sample_cdr.csv"
-            - Un patrón glob: "data/*.csv" (carga todos los CSV de la carpeta)
+            - Un patrón glob: "data/*.csv" (carga todos los CSV)
 
     Retorna:
         Un DataFrame de pandas con todos los registros combinados.
     """
 
-    # glob.glob() busca ficheros que coincidan con el patrón.
-    # Si path es "data/*.csv", devuelve ["data/1T.csv", "data/2T.csv", ...]
-    # Si path es un fichero concreto, devuelve solo ese fichero.
+    # glob.glob() busca ficheros que coincidan con el patrón
     files = glob.glob(path)
 
     if not files:
         raise FileNotFoundError(f"No se encontraron ficheros en: {path}")
 
     # Cargamos cada fichero y los combinamos en un solo DataFrame.
-    # pd.read_csv() lee un CSV y lo convierte en DataFrame (tabla en memoria).
-    # pd.concat() une varios DataFrames uno debajo de otro.
+    # dtype={"src": str, "dst": str} fuerza lectura como texto,
+    # evitando que pandas convierta +34612... en número y pierda el +.
     dataframes = []
     for f in sorted(files):
         df = pd.read_csv(f, low_memory=False, dtype={"src": str, "dst": str})
@@ -66,56 +67,51 @@ def clean_cdr(df: pd.DataFrame) -> pd.DataFrame:
     Operaciones:
         1. Parsear fechas (convertir texto a formato fecha)
         2. Limpiar números de teléfono
-        3. Añadir columnas útiles (hora, día de la semana, trimestre)
-        4. Filtrar registros de sistema (códigos de función como *271)
+        3. Añadir columnas temporales (hora, día, trimestre)
+        4. Filtrar registros de sistema (códigos como *271)
         5. Clasificar dirección de llamada (entrante/saliente/interna)
     """
 
     # ── 1. Parsear fechas ──
-    # El campo 'calldate' viene como texto ("2025-12-31 12:19:03").
-    # Lo convertimos a datetime de pandas para poder hacer cálculos
-    # como "¿a qué hora fue?" o "¿qué día de la semana?".
+    # 'calldate' viene como texto ("2025-12-31 12:19:03").
+    # Lo convertimos a datetime para poder calcular hora, día, etc.
     df["calldate"] = pd.to_datetime(df["calldate"], errors="coerce")
 
-    # Eliminamos filas donde la fecha no se pudo parsear (datos corruptos)
+    # Eliminamos filas con fecha corrupta
     df = df.dropna(subset=["calldate"])
 
     # ── 2. Limpiar números de teléfono ──
-    # El campo 'src' a veces trae el prefijo +34 y a veces no.
-    # Normalizamos: quitamos el +34 si existe, para comparar fácilmente.
+    # Quitamos el prefijo +34 para normalizar y comparar fácilmente
     df["src_clean"] = df["src"].astype(str).str.replace("+34", "", regex=False)
 
-    # ── 3. Añadir columnas útiles ──
-    # Extraemos información temporal que usaremos en los KPIs y gráficos.
+    # ── 3. Columnas temporales ──
     df["hour"] = df["calldate"].dt.hour           # Hora (0-23)
     df["weekday"] = df["calldate"].dt.day_name()   # "Monday", "Tuesday"...
-    df["date"] = df["calldate"].dt.date            # Solo la fecha, sin hora
+    df["date"] = df["calldate"].dt.date            # Solo la fecha
     df["month"] = df["calldate"].dt.month          # Mes (1-12)
-
-    # Trimestre: Q1 = Ene-Mar, Q2 = Abr-Jun, Q3 = Jul-Sep, Q4 = Oct-Dic
-    df["quarter"] = df["calldate"].dt.quarter
+    df["quarter"] = df["calldate"].dt.quarter      # Trimestre (1-4)
 
     # ── 4. Filtrar registros de sistema ──
     # Extensiones que empiezan por * son códigos de función internos
-    # (como *271 para buzón de voz). No son llamadas reales.
+    # (como *271 para acceder al buzón). No son llamadas reales.
     df = df[~df["dst"].astype(str).str.startswith("*")]
 
     # ── 5. Clasificar dirección de llamada ──
-    # Entrante externa: src es un número largo (paciente llama a la clínica)
-    # Interna: src es una extensión corta (transferencia entre compañeros)
-    # Saliente: desde extensión interna hacia número externo
+    # - Entrante externa (inbound): un paciente llama a la clínica
+    # - Interna (internal): transferencia entre extensiones
+    # - Saliente (outbound): la clínica llama hacia fuera
     def classify_direction(row):
-        src = str(row["src_clean"])  # Usamos src_clean (sin +34)
+        src = str(row["src_clean"])  # Sin +34
         dst = str(row["dst"])
         context = str(row["dcontext"])
 
-        # Saliente: from-internal con destino externo
+        # Saliente: desde extensión interna hacia número externo
         if context == "from-internal" and (dst.startswith("+34") or (len(dst) >= 9 and dst[0] in "6789")):
             return "outbound"
-        # Interna: src es extensión corta (2-3 dígitos)
+        # Interna: origen es extensión corta (2-3 dígitos)
         if len(src) <= 4 and src.isdigit():
             return "internal"
-        # Entrante externa: src es número largo (6, 7, 8 o 9 dígitos)
+        # Entrante externa: origen es número largo de móvil/fijo
         if len(src) >= 9 and src[0] in "6789":
             return "inbound"
         return "other"
@@ -135,76 +131,79 @@ def deduplicate_calls(df: pd.DataFrame) -> pd.DataFrame:
     llamada que entra en la cola 251 y hace ring en 4 extensiones
     aparecería como 8 registros (4 en ext-queues + 4 en ext-local).
 
-    Lógica de deduplicación:
+    Lógica:
         1. Agrupamos todos los registros por 'linkedid'
         2. Para cada grupo (= una llamada real), determinamos:
-           - ¿Se contestó? → si ALGÚN registro tiene disposition = ANSWERED
-           - ¿Quién contestó? → la extensión del registro ANSWERED
-           - ¿Cuánto duró la conversación? → el billsec del registro ANSWERED
-           - ¿Cuándo entró? → la fecha del primer registro del grupo
-           - ¿Quién llamó? → el src del primer registro del grupo
+           - ¿Se contestó? Si ALGÚN registro es ANSWERED
+           - ¿Quién contestó? La extensión del registro ANSWERED en ext-local
+           - ¿Fue al buzón de voz? Si contestó vmu201 o vms201
+           - ¿Cuánto duró? El billsec del registro que contestó
     """
 
-    # Agrupamos por linkedid y procesamos cada grupo.
-    # .agg() nos permite aplicar diferentes funciones a cada columna.
-
     def resolve_call(group):
-        """Procesa un grupo de registros que pertenecen a la misma llamada."""
+        """Procesa un grupo de registros de la misma llamada."""
 
-        # ¿Hay algún registro ANSWERED en el grupo?
+        # ¿Hay algún registro ANSWERED?
         answered_records = group[group["disposition"] == "ANSWERED"]
 
         if len(answered_records) > 0:
-            # La llamada se contestó.
-            # Buscamos el registro ANSWERED en contexto ext-local
-            # (ahí el dst es la extensión real que cogió la llamada).
-            # Si no hay ext-local, usamos el que tenga mayor billsec.
+            # Buscamos el ANSWERED en contexto ext-local
+            # (ahí el dst es la extensión real que cogió la llamada)
             local_answered = answered_records[answered_records["dcontext"] == "ext-local"]
             if len(local_answered) > 0:
                 best = local_answered.sort_values("billsec", ascending=False).iloc[0]
             else:
                 best = answered_records.sort_values("billsec", ascending=False).iloc[0]
-            disposition = "ANSWERED"
+
             answering_ext = best["dst"]
+
+            # ¿Contestó el buzón de voz?
+            if answering_ext in VOICEMAIL_EXTENSIONS:
+                disposition = "VOICEMAIL"
+            else:
+                disposition = "ANSWERED"
+
             billsec = best["billsec"]
         else:
-            # La llamada NO se contestó.
-            # Tomamos el primer registro del grupo para los datos básicos.
+            # Nadie contestó
             best = group.iloc[0]
-            disposition = best["disposition"]  # NO ANSWER, BUSY, or FAILED
+            disposition = best["disposition"]  # NO ANSWER, BUSY o FAILED
             answering_ext = None
             billsec = 0
 
-        # Construimos una fila resumen para esta llamada
         return pd.Series({
-            "calldate": group["calldate"].min(),      # Momento en que entró
-            "src": group["src"].iloc[0],               # Quién llamó
+            "calldate": group["calldate"].min(),       # Momento de entrada
+            "src": group["src"].iloc[0],                # Quién llamó
             "src_clean": group["src_clean"].iloc[0],
-            "disposition": disposition,                 # Resultado real
-            "answering_ext": answering_ext,            # Quién contestó
-            "billsec": int(billsec),                   # Duración conversación
-            "duration": int(best["duration"]),          # Duración total
+            "disposition": disposition,                  # Resultado real
+            "answering_ext": answering_ext,             # Quién contestó (o None)
+            "billsec": int(billsec),                    # Duración conversación
+            "duration": int(best["duration"]),           # Duración total
             "hour": group["hour"].iloc[0],
             "weekday": group["weekday"].iloc[0],
             "date": group["date"].iloc[0],
             "month": group["month"].iloc[0],
             "quarter": group["quarter"].iloc[0],
-            "num_records": len(group),                 # Cuántos registros generó
-            "direction": group["direction"].iloc[0],   # Tipo: inbound/outbound/internal
+            "num_records": len(group),                  # Registros que generó
+            "direction": group["direction"].iloc[0],    # inbound/outbound/internal
         })
 
-    # Aplicamos resolve_call a cada grupo de linkedid
     print("   🔗 Deduplicando por linkedid...")
     calls = df.groupby("linkedid").apply(resolve_call, include_groups=False).reset_index(drop=True)
 
     # Ordenamos por fecha (más reciente primero)
     calls = calls.sort_values("calldate", ascending=False).reset_index(drop=True)
 
-    print(f"   ✅ Llamadas únicas: {len(calls):,}")
-    print(f"   📞 Contestadas: {len(calls[calls['disposition'] == 'ANSWERED']):,} "
-          f"({len(calls[calls['disposition'] == 'ANSWERED']) / len(calls) * 100:.1f}%)")
-    print(f"   📵 No contestadas: {len(calls[calls['disposition'] != 'ANSWERED']):,} "
-          f"({len(calls[calls['disposition'] != 'ANSWERED']) / len(calls) * 100:.1f}%)")
+    # Resumen
+    total = len(calls)
+    answered = len(calls[calls["disposition"] == "ANSWERED"])
+    voicemail = len(calls[calls["disposition"] == "VOICEMAIL"])
+    missed = total - answered - voicemail
+
+    print(f"   ✅ Llamadas únicas: {total:,}")
+    print(f"   📞 Contestadas: {answered:,} ({answered/total*100:.1f}%)")
+    print(f"   📧 Buzón de voz: {voicemail:,} ({voicemail/total*100:.1f}%)")
+    print(f"   📵 No contestadas: {missed:,} ({missed/total*100:.1f}%)")
 
     return calls
 
@@ -213,9 +212,8 @@ def load_and_process(path: str = "data/sample_cdr.csv") -> pd.DataFrame:
     """
     Pipeline completo: carga → limpieza → deduplicación.
 
-    Esta función ejecuta los tres pasos en orden y devuelve
-    un DataFrame limpio con una fila por llamada real.
     Es la función que llamaremos desde main.py.
+    Devuelve un DataFrame limpio con una fila por llamada real.
     """
     print("📥 Paso 1: Cargando CDR...")
     raw = load_cdr(path)
@@ -229,7 +227,7 @@ def load_and_process(path: str = "data/sample_cdr.csv") -> pd.DataFrame:
     return calls
 
 
-# ── Si ejecutas este fichero directamente, muestra un resumen ──
+# ── Ejecución directa para pruebas ──
 if __name__ == "__main__":
     calls = load_and_process()
     print(f"\n{'='*50}")
@@ -238,3 +236,4 @@ if __name__ == "__main__":
     print(f"  Rango de fechas:  {calls['calldate'].min()} → {calls['calldate'].max()}")
     print(f"  Columnas:         {list(calls.columns)}")
     print(f"  Direcciones:      {calls['direction'].value_counts().to_dict()}")
+    print(f"  Disposiciones:    {calls['disposition'].value_counts().to_dict()}")

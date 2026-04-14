@@ -1,50 +1,57 @@
-# Dental Clinic CDR Analysis — Executive Report
+# Análisis CDR Clínica Dental — Informe Ejecutivo
 
-> Auto-generated report based on 500 inbound calls analysis.
-> Demo mode — generated without AI. Run with API key for AI-powered insights.
+> Informe generado a partir del análisis de 500 llamadas entrantes.
+> Modo demo — generado sin IA. Ejecuta con API Key para obtener análisis con IA.
 
-## Executive Summary
+## Resumen ejecutivo
 
-The dental clinic received **500 inbound external calls** during the analysis period, 
-with an overall answer rate of **83.4%** and an average call duration of 
-**2.6 minutes**. A total of **500 unique callers** contacted the clinic, 
-with approximately **25.0 calls per day** on average.
+La clínica recibió **500 llamadas entrantes externas** durante el periodo analizado, 
+con una tasa de contestación del **83.4%** y una duración media de conversación de 
+**2.6 minutos**. Un total de **500 llamantes únicos** contactaron 
+con la clínica, con una media de **25.0 llamadas diarias**. 
+El **0.0%** de las llamadas fueron derivadas al buzón de voz.
 
-## Key Findings
+## Hallazgos clave
 
-1. **Answer Rate: 83.4%** — Above the industry benchmark of 80% for healthcare facilities.
-2. **Miss Rate: 16.6%** — 83 callers could not reach the clinic.
-3. **Average Duration: 2.6 min** — Within the expected range for dental clinic calls (appointment scheduling, confirmations).
-4. **Daily Volume: 25.0 calls/day** — This volume requires dedicated reception coverage during business hours.
+1. **Tasa de contestación: 83.4%** — Por encima del benchmark del sector sanitario (80%).
+2. **Tasa de pérdida: 16.6%** — 83 llamantes no pudieron contactar con la clínica.
+3. **Buzón de voz: 0.0%** — 0 llamadas fueron derivadas al buzón cuando nadie pudo atender.
+4. **Duración media: 2.6 min** — Dentro del rango esperado para llamadas de clínica dental (pedir cita, confirmar, consultar dirección).
+5. **Volumen diario: 25.0 llamadas/día** — Requiere cobertura dedicada de recepción durante horario comercial.
 
-## Problems Detected
+## Problemas detectados
 
-### 📊 Moderate Call Loss Rate (16.6%)
-Every missed call is a potential patient who may book with a competitor. 
-At an estimated average value of €150-300 per new patient visit, 
-even a 16.6% miss rate represents significant revenue impact.
+### 📊 Moderada tasa de llamadas perdidas (16.6%)
+Cada llamada perdida es un paciente potencial que puede reservar con la competencia. 
+Con un valor medio estimado de 150-300€ por primera visita, incluso un 16.6% 
+de pérdida representa un impacto significativo en facturación.
 
-### Peak Hour Congestion
-The hourly distribution shows concentrated call volumes during specific time slots. 
-Reception staff may be overwhelmed during these peaks while underutilized during valleys.
+### Congestión en horas punta
+La distribución horaria muestra picos de volumen concentrados en franjas específicas. 
+El personal de recepción puede verse desbordado en estos picos mientras está infrautilizado 
+en los valles.
 
-## Actionable Recommendations
+### Derivación a buzón de voz (0.0%)
+Las llamadas al buzón de voz indican que la recepción no da abasto en ciertos momentos. 
+Muchos pacientes no dejan mensaje y simplemente cuelgan, lo que equivale a una llamada perdida.
 
-1. **Implement a callback system** for missed calls during peak hours — this recovers 
-   up to 60% of lost calls according to healthcare industry data.
-2. **Review staffing during peak hours** — ensure adequate reception coverage 
-   during the busiest time slots identified in the hourly analysis.
-3. **Set up a simple IVR** (Interactive Voice Response) to handle basic queries 
-   (address, opening hours) automatically, freeing reception for appointment scheduling.
-4. **Monitor weekly trends** — use this analysis tool regularly to track whether 
-   changes in staffing or processes improve the answer rate.
+## Recomendaciones accionables
 
-## Next Steps
+1. **Implementar un sistema de callback** para llamadas perdidas en horas punta — esto recupera 
+   hasta un 60% de llamadas perdidas según datos del sector sanitario.
+2. **Revisar plantilla en horas punta** — asegurar cobertura adecuada de recepción 
+   durante las franjas con más tráfico identificadas en el análisis horario.
+3. **Configurar un IVR básico** (respuesta automática) para consultas frecuentes 
+   (dirección, horario), liberando a recepción para gestión de citas.
+4. **Monitorizar tendencias semanales** — usar esta herramienta de análisis periódicamente 
+   para comprobar si los cambios de personal o procesos mejoran la tasa de contestación.
 
-- Run this analysis monthly to track trends over time.
-- Cross-reference missed calls with appointment booking data to quantify revenue impact.
-- Analyze call duration patterns to identify opportunities for efficiency improvements.
-- Consider implementing online booking to reduce phone dependency.
+## Próximos pasos
+
+- Ejecutar este análisis mensualmente para detectar tendencias.
+- Cruzar llamadas perdidas con datos de reservas para cuantificar el impacto en facturación.
+- Analizar patrones de duración para detectar oportunidades de eficiencia.
+- Valorar la implementación de citas online para reducir la dependencia del teléfono.
 
 ---
-*Report generated by Dental Clinic CDR Analyzer — [github.com/vjsoriano83/dental-clinic-cdr-analyzer](https://github.com/vjsoriano83/dental-clinic-cdr-analyzer)*
+*Informe generado por Dental Clinic CDR Analyzer — [github.com/vjsoriano83/dental-clinic-cdr-analyzer](https://github.com/vjsoriano83/dental-clinic-cdr-analyzer)*
