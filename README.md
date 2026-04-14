@@ -42,20 +42,16 @@ This tool solves that by building a complete data pipeline: ingestion → dedupl
 
 ## Architecture
 
-````
-FreePBX CSV Export
-       |
-       ▼
-  ingest.py ──▶ kpis.py ──▶ visualize.py ──▶ ai_report.py
-       |            |              |                |
-  Load CSV      Answer rate    Pie chart       Claude API
-  Parse dates   Miss rate      Hourly bars     or demo mode
-  Clean phones  Voicemail %    Heatmap
-  Classify dir  By hour/day    Extensions      Executive
-  Deduplicate   By extension   Weekday bars    report .md
-  by linkedid   Quarterly
-````
-````
+The pipeline processes CDR data in four sequential steps:
+
+**ingest.py** → Load CSV, parse dates, clean phones, classify direction, deduplicate by linkedid
+
+**kpis.py** → Answer rate, miss rate, voicemail %, hourly/daily distribution, extension performance, quarterly trends
+
+**visualize.py** → Pie chart, hourly bars, weekday bars, extension comparison, heatmap
+
+**ai_report.py** → Send KPIs to Claude API (or generate demo report) → Executive report in Markdown
+
 
 ## Quick Start
 
@@ -136,7 +132,8 @@ The `linkedid` field links all records from the same call. This pipeline groups 
 
 ## About the Author
 
-**Víctor Soriano Tárrega** — Senior Project & Programme Manager with 18+ years in telecom, IT infrastructure, and data. Currently managing B2B and Public Sector programmes at MasOrange. Former Technical Lead and Data Scientist at Orange Spain. IT consultant for dental clinics since 2011.
+**Víctor Soriano Tárrega** — Senior Project & Programme Manager specializing in Data, AI and Cybersecurity in Telecom and Public Sector environments. Former Technical Lead and Data Scientist. IT consultant for dental clinics since 2011.
+
 
 - 🔗 [LinkedIn](https://www.linkedin.com/in/vjsoriano)
 - 🐙 [GitHub](https://github.com/vjsoriano83)
