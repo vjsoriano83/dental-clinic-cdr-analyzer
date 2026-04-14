@@ -5,9 +5,11 @@ Este módulo toma el DataFrame deduplicado (una fila por llamada real)
 y calcula métricas que un gerente de clínica dental puede usar para
 tomar decisiones.
 
-La diferencia entre un Data Scientist y un PM con visión de datos:
-el primero calcula números, el segundo los traduce en acciones.
-Cada KPI aquí tiene un "por qué importa" que lo conecta con el negocio.
+IMPORTANTE: los KPIs principales se calculan SOLO sobre llamadas
+entrantes externas (direction == "inbound"). Las internas y salientes
+se reportan aparte pero no afectan a la tasa de pérdida, porque
+que una transferencia interna no se complete no es lo mismo que
+perder un paciente.
 
 Autor: Víctor Soriano Tárrega (@vjsoriano83)
 """
@@ -31,14 +33,21 @@ def compute_general_kpis(df: pd.DataFrame) -> dict:
           3. Alimentar los gráficos
     """
 
-    total = len(df)
-    answered = len(df[df["disposition"] == "ANSWERED"])
-    not_answered = len(df[df["disposition"] == "NO ANSWER"])
-    busy = len(df[df["disposition"] == "BUSY"])
-    failed = len(df[df["disposition"] == "FAILED"])
+    # ── Desglose por dirección ──
+    direction_counts = df["direction"].value_counts().to_dict()
+
+    # Para los KPIs de negocio, nos centramos en llamadas ENTRANTES EXTERNAS.
+    # Las internas y salientes no son "llamadas perdidas" en el sentido de negocio.
+    inbound = df[df["direction"] == "inbound"]
+
+    total = len(inbound)
+    answered = len(inbound[inbound["disposition"] == "ANSWERED"])
+    not_answered = len(inbound[inbound["disposition"] == "NO ANSWER"])
+    busy = len(inbound[inbound["disposition"] == "BUSY"])
+    failed = len(inbound[inbound["disposition"] == "FAILED"])
 
     # Solo llamadas contestadas para calcular duración media
-    answered_calls = df[df["disposition"] == "ANSWERED"]
+    answered_calls = inbound[inbound["disposition"] == "ANSWERED"]
 
     kpis = OrderedDict()
 
@@ -65,12 +74,16 @@ def compute_general_kpis(df: pd.DataFrame) -> dict:
     kpis["avg_duration_min"] = round(kpis["avg_duration_sec"] / 60, 1)
 
     # Números únicos: ¿cuántos pacientes/personas distintas llaman?
-    kpis["unique_callers"] = df["src_clean"].nunique()
+    kpis["unique_callers"] = inbound["src_clean"].nunique()
 
     # Llamadas por día (media): da una idea del volumen diario
     # que tiene que manejar recepción.
-    days = df["date"].nunique()
+    days = inbound["date"].nunique()
     kpis["avg_calls_per_day"] = round(total / days, 1) if days > 0 else 0
+
+    # Desglose total por dirección (informativo)
+    kpis["direction_breakdown"] = direction_counts
+    kpis["total_all_directions"] = len(df)
 
     return kpis
 
@@ -80,14 +93,18 @@ def compute_hourly_distribution(df: pd.DataFrame) -> pd.DataFrame:
     Calcula cuántas llamadas hay por hora del día, separando
     contestadas y no contestadas.
 
+    Solo llamadas entrantes externas — las que importan para el negocio.
+
     ¿Por qué importa?
     Permite saber a qué horas la clínica se colapsa. Si a las 10:00
     hay 3x más llamadas que a las 15:00 pero la misma recepcionista,
     ese es el problema.
     """
 
+    inbound = df[df["direction"] == "inbound"]
+
     # pd.crosstab() crea una tabla cruzada: filas = horas, columnas = disposición
-    hourly = pd.crosstab(df["hour"], df["disposition"])
+    hourly = pd.crosstab(inbound["hour"], inbound["disposition"])
 
     # Nos aseguramos de que las columnas existan aunque no haya datos
     for col in ["ANSWERED", "NO ANSWER", "BUSY", "FAILED"]:
@@ -107,15 +124,19 @@ def compute_weekday_distribution(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calcula el volumen de llamadas por día de la semana.
 
+    Solo llamadas entrantes externas.
+
     ¿Por qué importa?
     Si los lunes tienen el doble de llamadas que los viernes,
     quizá se necesita refuerzo de personal al inicio de semana.
     """
 
+    inbound = df[df["direction"] == "inbound"]
+
     # Orden correcto de los días (por defecto pandas los ordena alfabéticamente)
     day_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-    weekday = pd.crosstab(df["weekday"], df["disposition"])
+    weekday = pd.crosstab(inbound["weekday"], inbound["disposition"])
 
     for col in ["ANSWERED", "NO ANSWER", "BUSY", "FAILED"]:
         if col not in weekday.columns:
@@ -137,14 +158,18 @@ def compute_extension_performance(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calcula cuántas llamadas contestó cada extensión.
 
+    Solo llamadas entrantes externas contestadas.
+
     ¿Por qué importa?
     Muestra qué extensiones (= qué personas) están cargando
     con el peso de las llamadas. Si una extensión contesta el 60%
     y las demás se reparten el 40%, hay un desequilibrio.
     """
 
+    inbound = df[df["direction"] == "inbound"]
+
     # Solo llamadas contestadas (tienen answering_ext)
-    answered = df[df["disposition"] == "ANSWERED"].copy()
+    answered = inbound[inbound["disposition"] == "ANSWERED"].copy()
 
     if len(answered) == 0:
         return pd.DataFrame()
@@ -168,12 +193,16 @@ def compute_quarterly_trend(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calcula la evolución trimestral de llamadas y tasa de contestación.
 
+    Solo llamadas entrantes externas.
+
     ¿Por qué importa?
     Permite ver tendencias: ¿crece la demanda? ¿empeora el servicio
     en verano (vacaciones de personal)? ¿hay estacionalidad?
     """
 
-    quarterly = df.groupby("quarter").agg(
+    inbound = df[df["direction"] == "inbound"]
+
+    quarterly = inbound.groupby("quarter").agg(
         total_calls=("disposition", "count"),
         answered=("disposition", lambda x: (x == "ANSWERED").sum()),
     )
@@ -190,6 +219,8 @@ def compute_top_callers(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     """
     Identifica los números que más llaman.
 
+    Solo llamadas entrantes externas.
+
     ¿Por qué importa?
     Puede revelar:
     - Pacientes frecuentes (fidelización)
@@ -197,7 +228,9 @@ def compute_top_callers(df: pd.DataFrame, top_n: int = 10) -> pd.DataFrame:
     - Pacientes que llaman muchas veces sin que les cojan (problema grave)
     """
 
-    caller_stats = df.groupby("src_clean").agg(
+    inbound = df[df["direction"] == "inbound"]
+
+    caller_stats = inbound.groupby("src_clean").agg(
         total_calls=("disposition", "count"),
         answered=("disposition", lambda x: (x == "ANSWERED").sum()),
         not_answered=("disposition", lambda x: (x != "ANSWERED").sum()),
@@ -235,7 +268,8 @@ def compute_all_kpis(df: pd.DataFrame) -> dict:
 
     # Resumen por pantalla
     g = results["general"]
-    print(f"   📞 Total llamadas: {g['total_calls']:,}")
+    print(f"   📞 Entrantes externas: {g['total_calls']:,} (de {g['total_all_directions']:,} totales)")
+    print(f"   📊 Desglose: {g['direction_breakdown']}")
     print(f"   ✅ Tasa de contestación: {g['answer_rate_pct']}%")
     print(f"   📵 Tasa de pérdida: {g['miss_rate_pct']}%")
     print(f"   ⏱️  Duración media: {g['avg_duration_min']} min")

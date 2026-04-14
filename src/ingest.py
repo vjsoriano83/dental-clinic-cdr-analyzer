@@ -49,7 +49,7 @@ def load_cdr(path: str) -> pd.DataFrame:
     # pd.concat() une varios DataFrames uno debajo de otro.
     dataframes = []
     for f in sorted(files):
-        df = pd.read_csv(f, low_memory=False)
+        df = pd.read_csv(f, low_memory=False, dtype={"src": str, "dst": str})
         dataframes.append(df)
         print(f"   📄 {os.path.basename(f)}: {len(df):,} registros")
 
@@ -68,6 +68,7 @@ def clean_cdr(df: pd.DataFrame) -> pd.DataFrame:
         2. Limpiar números de teléfono
         3. Añadir columnas útiles (hora, día de la semana, trimestre)
         4. Filtrar registros de sistema (códigos de función como *271)
+        5. Clasificar dirección de llamada (entrante/saliente/interna)
     """
 
     # ── 1. Parsear fechas ──
@@ -98,6 +99,28 @@ def clean_cdr(df: pd.DataFrame) -> pd.DataFrame:
     # Extensiones que empiezan por * son códigos de función internos
     # (como *271 para buzón de voz). No son llamadas reales.
     df = df[~df["dst"].astype(str).str.startswith("*")]
+
+    # ── 5. Clasificar dirección de llamada ──
+    # Entrante externa: src es un número largo (paciente llama a la clínica)
+    # Interna: src es una extensión corta (transferencia entre compañeros)
+    # Saliente: desde extensión interna hacia número externo
+    def classify_direction(row):
+        src = str(row["src_clean"])  # Usamos src_clean (sin +34)
+        dst = str(row["dst"])
+        context = str(row["dcontext"])
+
+        # Saliente: from-internal con destino externo
+        if context == "from-internal" and (dst.startswith("+34") or (len(dst) >= 9 and dst[0] in "6789")):
+            return "outbound"
+        # Interna: src es extensión corta (2-3 dígitos)
+        if len(src) <= 4 and src.isdigit():
+            return "internal"
+        # Entrante externa: src es número largo (6, 7, 8 o 9 dígitos)
+        if len(src) >= 9 and src[0] in "6789":
+            return "inbound"
+        return "other"
+
+    df["direction"] = df.apply(classify_direction, axis=1)
 
     print(f"   🧹 Registros tras limpieza: {len(df):,}")
 
@@ -167,6 +190,7 @@ def deduplicate_calls(df: pd.DataFrame) -> pd.DataFrame:
             "month": group["month"].iloc[0],
             "quarter": group["quarter"].iloc[0],
             "num_records": len(group),                 # Cuántos registros generó
+            "direction": group["direction"].iloc[0],   # Tipo: inbound/outbound/internal
         })
 
     # Aplicamos resolve_call a cada grupo de linkedid
@@ -213,3 +237,4 @@ if __name__ == "__main__":
     print(f"  Llamadas totales: {len(calls):,}")
     print(f"  Rango de fechas:  {calls['calldate'].min()} → {calls['calldate'].max()}")
     print(f"  Columnas:         {list(calls.columns)}")
+    print(f"  Direcciones:      {calls['direction'].value_counts().to_dict()}")
