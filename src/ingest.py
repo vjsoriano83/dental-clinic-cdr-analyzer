@@ -133,9 +133,14 @@ def deduplicate_calls(df: pd.DataFrame) -> pd.DataFrame:
 
         if len(answered_records) > 0:
             # La llamada se contestó.
-            # Tomamos el registro ANSWERED que tiene billsec > 0
-            # (ese es el que realmente mantuvo la conversación).
-            best = answered_records.sort_values("billsec", ascending=False).iloc[0]
+            # Buscamos el registro ANSWERED en contexto ext-local
+            # (ahí el dst es la extensión real que cogió la llamada).
+            # Si no hay ext-local, usamos el que tenga mayor billsec.
+            local_answered = answered_records[answered_records["dcontext"] == "ext-local"]
+            if len(local_answered) > 0:
+                best = local_answered.sort_values("billsec", ascending=False).iloc[0]
+            else:
+                best = answered_records.sort_values("billsec", ascending=False).iloc[0]
             disposition = "ANSWERED"
             answering_ext = best["dst"]
             billsec = best["billsec"]
