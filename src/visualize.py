@@ -195,7 +195,7 @@ def plot_extension_performance(kpis: dict):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
     # Convertimos el índice a string para evitar problemas con floats
-    ext_labels = [str(int(e)) if not pd.isna(e) else str(e) for e in ext.index]
+    ext_labels = [str(int(float(e))) if str(e).replace('.','').replace('-','').isdigit() else str(e) for e in ext.index]
 
     # Gráfico 1: llamadas contestadas por extensión
     bars1 = ax1.barh(ext_labels, ext["llamadas_contestadas"], color=COLORS["secondary"])

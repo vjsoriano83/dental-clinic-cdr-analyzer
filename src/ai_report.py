@@ -93,8 +93,19 @@ IMPORTANTE:
 - Los KPIs solo incluyen llamadas ENTRANTES EXTERNAS (pacientes llamando a la clínica).
 - Las transferencias internas y llamadas salientes se han filtrado.
 - Las llamadas al buzón de voz se contabilizan por separado.
-- La clínica tiene recepción (ext 201, 221) y gabinetes (ext 222-227) configurados 
-  en ring group. Los gabinetes atienden por desbordamiento cuando recepción no puede.
+
+CONTEXTO DE LA CLÍNICA (respetar en las recomendaciones):
+- Recepción tiene 2 extensiones (201, 221) que son las que deben atender las llamadas.
+- Recepción pese tener 2 extensiones, puedes tener sólo una persona atendiendo en cada momento,
+  no ambas a la vez. A parte de hacer otras tareas administrativas de la clínica.
+- Los gabinetes (ext 222-227) son consultas de dentistas. Están configurados en el 
+  ring group como desbordamiento: solo suenan si recepción no puede coger.
+- Los dentistas NO pueden atender llamadas de forma habitual porque están con pacientes.
+  Que un gabinete coja una llamada es una solución de emergencia, no una práctica deseable.
+- No sugieras formar a gabinetes para atender llamadas ni aumentar su participación.
+  El objetivo es que recepción atienda el mayor porcentaje posible.
+- La clínica es pequeña (2 recepcionistas + varios gabinetes). Las recomendaciones 
+  deben ser realistas para una PYME sanitaria, no para un call center corporativo.
 
 Aquí están los KPIs:
 
